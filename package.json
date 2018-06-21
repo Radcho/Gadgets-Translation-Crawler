@@ -1,0 +1,15 @@
+{
+  "name": "gadgets-translation-crawler",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Radovan Balog",
+  "license": "The Unlicense",
+  "dependencies": {
+    "glob": "^7.1.2",
+    "sort-json": "^2.0.0"
+  }
+}

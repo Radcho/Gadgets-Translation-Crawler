@@ -59,3 +59,9 @@ typings/
 
 # next.js build output
 .next
+
+# Missing translations table
+missing.csv
+
+# Locales folder
+locales
