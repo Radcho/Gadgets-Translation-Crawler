@@ -17,7 +17,7 @@ fs.readFile('locales/en_us/translation.json', { encoding: 'utf8' }, (err, data) 
                     if (err) throw err;
                     const locale = JSON.parse(data.trim());
                     processTranslation(en, locale);
-                    fs.writeFile(file, JSON.stringify(locale, null, 4), (err) => {
+                    fs.writeFile(file, JSON.stringify(locale, null, '\t'), (err) => {
                         if (err) throw err;
                         sortJson.overwrite(file, { ignoreCase: true });
                     });
@@ -25,6 +25,11 @@ fs.readFile('locales/en_us/translation.json', { encoding: 'utf8' }, (err, data) 
             }
         });
     });
+
+    fs.writeFile('locales/en_us/translation.json', JSON.stringify(en, null, '\t'), (err) => {
+        if (err) throw err;
+        sortJson.overwrite('locales/en_us/translation.json', { ignoreCase: true });
+    })
 });
 
 process.on('exit', () => {
@@ -49,6 +54,16 @@ function getValue(key) {
     return result;
 }
 
+function addMissingKeys(source, path) {
+    Object.keys(source).forEach((key) => {
+        if (typeof source[key] === 'object') {
+            addMissingKeys(source[key], path + key + '.');
+        } else {
+            missingTranslations.add(path + key);
+        }
+    })
+}
+
 function processTranslation(source, target, path = '') {
     const sourceKeys = Object.keys(source);
     const targetKeys = Object.keys(target);
@@ -61,6 +76,7 @@ function processTranslation(source, target, path = '') {
         } else if (typeof source[key] === 'object') {
             if (typeof target[key] !== 'object') {
                 target[key] = source[key]
+                addMissingKeys(source[key], path + key + '.');
             } else {
                 processTranslation(source[key], target[key], key + '.');
             }
