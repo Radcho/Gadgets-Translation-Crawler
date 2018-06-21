@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js"
+    "start": "node index.js",
+    "clean": "node clean.js"
   },
   "author": "Radovan Balog",
   "license": "The Unlicense",
