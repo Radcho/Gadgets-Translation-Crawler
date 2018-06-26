@@ -4,11 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "clean": "node clean.js"
+    "find": "node find.js",
+    "clean": "node clean.js",
+    "add": "node add.js"
   },
   "author": "Radovan Balog",
-  "license": "The Unlicense",
+  "license": "Unlicense",
   "dependencies": {
     "glob": "^7.1.2",
     "sort-json": "^2.0.0"

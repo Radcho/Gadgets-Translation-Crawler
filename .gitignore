@@ -62,6 +62,7 @@ typings/
 
 # Missing translations table
 missing.csv
+translations.csv
 
 # Locales folder
 locales
