@@ -4,6 +4,9 @@ if (fs.existsSync('missing.csv')) {
     fs.unlink('missing.csv', (err) => {
         if (err) throw err;
     });
+    fs.unlink('translations.csv', (err) => {
+        if (err) throw err;
+    });
 }
 
 deleteFolderRecursive('locales');
