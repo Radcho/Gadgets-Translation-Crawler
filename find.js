@@ -38,7 +38,7 @@ process.on('exit', () => {
         let table = '';
         missingTranslations.forEach((key) => {
             console.log('    ' + key);
-            table += key + ',\"' + getValue(key) + '\"\r\n';
+            table += key + ';\"' + getValue(key) + '\"\r\n';
         });
 
         fs.writeFileSync('missing.csv', table);
@@ -78,7 +78,7 @@ function processTranslation(source, target, path = '') {
                 target[key] = source[key]
                 addMissingKeys(source[key], path + key + '.');
             } else {
-                processTranslation(source[key], target[key], key + '.');
+                processTranslation(source[key], target[key], path + key + '.');
             }
         }
     });
