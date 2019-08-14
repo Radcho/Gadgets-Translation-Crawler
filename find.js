@@ -1,52 +1,74 @@
-const fs = require('fs');
-const glob = require('glob');
-const sortJson = require('sort-json');
+const fs = require('fs').promises;
+const util = require('util');
+const glob = util.promisify(require('glob'));
+const sortObject = require('./sort');
 
-const missingTranslations = new Set();
-let en = {};
+const DEFAULT_LANGUAGE = 'en_us';
+const LOCALES_FOLDER = 'locales';
+const DEFAULT_TRANSLATION_FILE = `${LOCALES_FOLDER}/${DEFAULT_LANGUAGE}/translation.json`
 
-fs.readFile('locales/en_us/translation.json', { encoding: 'utf8' }, (err, data) => {
-    if (err) throw err;
-    en = JSON.parse(data.trim());
+main();
 
-    glob('locales/**/*.json', (err, files) => {
-        if (err) throw err;
-        files.forEach((file) => {
-            if (file.indexOf('en_us') === -1) {
-                fs.readFile(file, { encoding: 'utf8' }, (err, data) => {
-                    if (err) throw err;
-                    const locale = JSON.parse(data.trim());
-                    processTranslation(en, locale);
-                    fs.writeFile(file, JSON.stringify(locale, null, '\t'), (err) => {
-                        if (err) throw err;
-                        sortJson.overwrite(file, { ignoreCase: true });
-                    });
-                });
-            }
-        });
-    });
+/**
+ * Finds all translations from the default locale that are missing in all other locales. Generates a new file with the found translations.
+ */
+async function main() {
+    const missingTranslations = new Set();
 
-    fs.writeFile('locales/en_us/translation.json', JSON.stringify(en, null, '\t'), (err) => {
-        if (err) throw err;
-        sortJson.overwrite('locales/en_us/translation.json', { ignoreCase: true });
-    })
-});
+    const defaultTranslation = JSON.parse((await fs.readFile(DEFAULT_TRANSLATION_FILE, { encoding: 'utf8' })).trim());
+    const files = await glob(`${LOCALES_FOLDER}/**/*.json`);
 
-process.on('exit', () => {
+    const translationPromises = files
+        .filter((file) => file.indexOf(DEFAULT_LANGUAGE) === -1)
+        .map((file) => findTranslation(defaultTranslation, file, missingTranslations));
+
+    await Promise.all([formatDefaultTranslation(defaultTranslation), ...translationPromises]);
+
     if (missingTranslations.size) {
         console.log('Missing translations:');
         let table = '';
         missingTranslations.forEach((key) => {
-            console.log('    ' + key);
-            table += key + ';\"' + getValue(key) + '\"\r\n';
+            console.log(`    ${key}`);
+            table += `${key};"${getValue(key, defaultTranslation)}"\r\n`;
         });
 
-        fs.writeFileSync('missing.csv', table);
+        await fs.writeFile('missing.csv', table);
     }
-});
+}
 
-function getValue(key) {
-    let result = en;
+/**
+ * Process a specific locale and find the missing keys.
+ *
+ * @param {any} defaultTranslation The default locale.
+ * @param {string} file The path to the locale to go through.
+ * @param {Set<string>} missingTranslations Set containing all missing translations.
+ */
+async function findTranslation(defaultTranslation, file, missingTranslations) {
+    const translation = JSON.parse((await fs.readFile(file, { encoding: 'utf8' })).trim());
+    const sortedTranslation = sortObject(processTranslation(defaultTranslation, translation, missingTranslations));
+
+    await fs.writeFile(file, JSON.stringify(sortedTranslation, null, '\t'));
+}
+
+/**
+ * Sorts the default translation file.
+ *
+ * @param {any} defaultTranslation Default translation object.
+ */
+async function formatDefaultTranslation(defaultTranslation) {
+    const sortedTranslation = sortObject(defaultTranslation);
+    await fs.writeFile(DEFAULT_TRANSLATION_FILE, JSON.stringify(sortedTranslation, null, '\t'));
+}
+
+/**
+ * Gets the default value of the compounded key.
+ *
+ * @param {string} key Key to find in the default translation.
+ * @param {any} defaultTranslation Default translation object.
+ * @returns {string} Default value of the key.
+ */
+function getValue(key, defaultTranslation) {
+    let result = defaultTranslation;
     for (const sub of key.split('.')) {
         result = result[sub];
     }
@@ -54,32 +76,53 @@ function getValue(key) {
     return result;
 }
 
-function addMissingKeys(source, path) {
-    Object.keys(source).forEach((key) => {
+/**
+ * Adds all keys from the source object into the missing translations set.
+ *
+ * @param {any} source Current source object with missing keys.
+ * @param {string} path Path of keys from the root until the source object.
+ * @param {Set<string>} missingTranslations Set containing all missing translations.
+ */
+function addMissingKeys(source, path, missingTranslations) {
+    for (const key in source) {
         if (typeof source[key] === 'object') {
-            addMissingKeys(source[key], path + key + '.');
+            addMissingKeys(source[key], `${path}${key}.`, missingTranslations);
         } else {
-            missingTranslations.add(path + key);
+            missingTranslations.add(`${path}${key}`);
         }
-    })
+    }
 }
 
-function processTranslation(source, target, path = '') {
+/**
+ * Process a locale file, delete all target keys that are missing in the source file and find all missing keys that are not in the target file.
+ *
+ * @param {any} source Base locale for comparison. Usually the default locale.
+ * @param {any} target Target locale for finding missing translations.
+ * @param {Set<string>} missingTranslations Set containing all missing translations.
+ * @param {string} [path=''] Path to the current key. Used for recursion.
+ *
+ * @returns {any} Processed translation file.
+ */
+function processTranslation(source, target, missingTranslations, path = '') {
     const sourceKeys = Object.keys(source);
     const targetKeys = Object.keys(target);
-    targetKeys.filter((key) => sourceKeys.find((sourceKey) => sourceKey === key) == null).forEach((key) => delete target[key]);
+    targetKeys.filter((key) => sourceKeys.indexOf(key) === -1).forEach((key) => delete target[key]);
+
+    const copy = Object.assign({}, target);
 
     sourceKeys.forEach((key) => {
-        if (typeof source[key] === 'string' && typeof target[key] !== 'string') {
-            target[key] = source[key];
+        if (typeof source[key] === 'string' && typeof copy[key] !== 'string') {
+            copy[key] = source[key];
             missingTranslations.add(path + key);
         } else if (typeof source[key] === 'object') {
-            if (typeof target[key] !== 'object') {
-                target[key] = source[key]
-                addMissingKeys(source[key], path + key + '.');
+            if (typeof copy[key] !== 'object') {
+                copy[key] = source[key]
+                addMissingKeys(source[key], path + key + '.', missingTranslations);
             } else {
-                processTranslation(source[key], target[key], path + key + '.');
+                copy[key] = processTranslation(source[key], target[key], missingTranslations, path + key + '.');
             }
         }
     });
+
+    return copy;
 }

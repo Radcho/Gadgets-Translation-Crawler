@@ -1,26 +1,16 @@
-const fs = require('fs');
+const util = require('util');
+const rimraf = util.promisify(require('rimraf'));
 
-if (fs.existsSync('missing.csv')) {
-    fs.unlink('missing.csv', (err) => {
-        if (err) throw err;
-    });
-    fs.unlink('translations.csv', (err) => {
-        if (err) throw err;
-    });
-}
+// Run the script.
+main();
 
-deleteFolderRecursive('locales');
-
-function deleteFolderRecursive(path) {
-    if (fs.existsSync(path)) {
-        fs.readdirSync(path).forEach(function(file, index){
-            var curPath = path + "/" + file;
-            if (fs.lstatSync(curPath).isDirectory()) {
-                deleteFolderRecursive(curPath);
-            } else {
-                fs.unlinkSync(curPath);
-            }
-        });
-        fs.rmdirSync(path);
+/**
+ * Cleans the `missing.csv`, `translations.csv` and `locales` files.
+ */
+async function main() {
+    try {
+        Promise.all([rimraf('missing.csv'), rimraf('translations.csv'), rimraf('locales')]);
+    } catch (err) {
+        console.error(`Failed to clean all files. ${err.toString()}`);
     }
-};
+}

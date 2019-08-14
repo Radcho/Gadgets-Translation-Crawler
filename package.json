@@ -1,17 +1,16 @@
 {
   "name": "gadgets-translation-crawler",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "",
-  "main": "index.js",
   "scripts": {
     "find": "node find.js",
     "clean": "node clean.js",
     "add": "node add.js"
   },
   "author": "Radovan Balog",
-  "license": "Unlicense",
+  "license": "ISC",
   "dependencies": {
-    "glob": "^7.1.2",
-    "sort-json": "^2.0.0"
+    "glob": "^7.1.4",
+    "rimraf": "^2.7.0"
   }
 }
